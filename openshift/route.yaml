@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: firesight-coordinator
+  labels:
+    app: firesight-coordinator
+spec:
+  to:
+    kind: Service
+    name: firesight-coordinator
+  port:
+    targetPort: http
+  tls:
+    termination: edge

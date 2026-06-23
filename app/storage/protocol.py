@@ -1,0 +1,62 @@
+from typing import Protocol
+from uuid import UUID
+
+from app.schemas import InferenceResult, InterviewAnalysisResult, InterviewQuestion, JobRecord, MessageType
+
+
+class StorageBackend(Protocol):
+    async def create_job(
+        self,
+        *,
+        audio_bytes: bytes,
+        filename: str,
+        message_type: MessageType,
+        incident_type_name: str | None,
+    ) -> JobRecord: ...
+
+    async def create_analyze_job(
+        self,
+        *,
+        transcript: str,
+        questions: list[InterviewQuestion],
+    ) -> JobRecord: ...
+
+    async def get_job(self, job_id: UUID) -> JobRecord | None: ...
+
+    async def claim_next_job(self) -> JobRecord | None: ...
+
+    async def complete_transcription(
+        self,
+        job_id: UUID,
+        *,
+        transcript: str,
+    ) -> JobRecord: ...
+
+    async def request_extraction(
+        self,
+        job_id: UUID,
+        *,
+        text: str,
+        message_type: MessageType,
+        incident_type_name: str | None,
+    ) -> JobRecord: ...
+
+    async def complete_extraction(
+        self,
+        job_id: UUID,
+        *,
+        result: InferenceResult,
+    ) -> JobRecord: ...
+
+    async def complete_analysis(
+        self,
+        job_id: UUID,
+        *,
+        result: InterviewAnalysisResult,
+    ) -> JobRecord: ...
+
+    async def fail_job(self, job_id: UUID, *, error: str) -> JobRecord: ...
+
+    async def get_audio_bytes(self, job_id: UUID) -> tuple[bytes, str] | None: ...
+
+    def audio_download_url(self, job_id: UUID) -> str: ...

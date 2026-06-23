@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firesight-coordinator
+  labels:
+    app: firesight-coordinator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firesight-coordinator
+  template:
+    metadata:
+      labels:
+        app: firesight-coordinator
+    spec:
+      containers:
+        - name: coordinator
+          image: firesight-coordinator:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8080"
+            - name: USE_FAKE_STORAGE
+              value: "false"
+            - name: WEB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: firesight-coordinator-secrets
+                  key: WEB_API_KEY
+            - name: WORKER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: firesight-coordinator-secrets
+                  key: WORKER_API_KEY
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: firesight-coordinator-secrets
+                  key: SUPABASE_URL
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: firesight-coordinator-secrets
+                  key: SUPABASE_SERVICE_ROLE_KEY
+            - name: SUPABASE_AUDIO_BUCKET
+              value: inference-audio
+            - name: COORDINATOR_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: firesight-coordinator-secrets
+                  key: COORDINATOR_BASE_URL
+            - name: CORS_ORIGINS
+              valueFrom:
+                secretKeyRef:
+                  name: firesight-coordinator-secrets
+                  key: CORS_ORIGINS
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
