@@ -15,6 +15,7 @@ from app.schemas import (
     JobRecord,
     MessageType,
     PhotoAnalysisResult,
+    QuestionTranslationResult,
 )
 from app.storage.protocol import StorageBackend
 
@@ -34,11 +35,12 @@ def _row_to_job(row: dict) -> JobRecord:
     result_data = row.get("result")
     result = InferenceResult.model_validate(result_data) if result_data else None
     analysis_result_data = row.get("analysis_result")
-    analysis_result = (
-        InterviewAnalysisResult.model_validate(analysis_result_data)
-        if analysis_result_data
-        else None
-    )
+    analysis_result = None
+    if analysis_result_data:
+        if row.get("job_kind") == "question_translation":
+            analysis_result = QuestionTranslationResult.model_validate(analysis_result_data)
+        else:
+            analysis_result = InterviewAnalysisResult.model_validate(analysis_result_data)
     questions_data = row.get("analysis_questions")
     analysis_questions = (
         [InterviewQuestion.model_validate(q) for q in questions_data]
@@ -131,6 +133,7 @@ class SupabaseStorage:
         *,
         transcript: str,
         questions: list[InterviewQuestion],
+        interview_language: InterviewLanguage | None = None,
     ) -> JobRecord:
         job_id = uuid4()
 
@@ -143,6 +146,31 @@ class SupabaseStorage:
                 "message_type": "field_notes",
                 "transcript": transcript,
                 "analysis_questions": [q.model_dump(mode="json") for q in questions],
+            }
+            if interview_language is not None:
+                row["interview_language"] = interview_language
+            response = self._client.table(TABLE).insert(row).execute()
+            return _row_to_job(response.data[0])
+
+        return await asyncio.to_thread(_create)
+
+    async def create_translate_questions_job(
+        self,
+        *,
+        questions: list[InterviewQuestion],
+        interview_language: InterviewLanguage,
+    ) -> JobRecord:
+        job_id = uuid4()
+
+        def _create() -> JobRecord:
+            row = {
+                "id": str(job_id),
+                "status": "analyze_pending",
+                "job_kind": "question_translation",
+                "audio_path": None,
+                "message_type": "field_notes",
+                "analysis_questions": [q.model_dump(mode="json") for q in questions],
+                "interview_language": interview_language,
             }
             response = self._client.table(TABLE).insert(row).execute()
             return _row_to_job(response.data[0])
@@ -318,6 +346,35 @@ class SupabaseStorage:
             if job.status != "processing":
                 raise ValueError(
                     f"Job {job_id} cannot complete analysis from status {job.status}"
+                )
+            now = datetime.now(UTC).isoformat()
+            update = {
+                "status": "completed",
+                "analysis_result": result.model_dump(mode="json"),
+                "error": None,
+                "completed_at": now,
+            }
+            response = (
+                self._client.table(TABLE)
+                .update(update)
+                .eq("id", str(job_id))
+                .execute()
+            )
+            return _row_to_job(response.data[0])
+
+        return await asyncio.to_thread(_complete)
+
+    async def complete_question_translation(
+        self,
+        job_id: UUID,
+        *,
+        result: QuestionTranslationResult,
+    ) -> JobRecord:
+        def _complete() -> JobRecord:
+            job = self._require_job_sync(job_id)
+            if job.status != "processing":
+                raise ValueError(
+                    f"Job {job_id} cannot complete question translation from status {job.status}"
                 )
             now = datetime.now(UTC).isoformat()
             update = {

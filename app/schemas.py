@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -21,7 +21,7 @@ ExtractableField = Literal[
     "handoverNpc",
 ]
 
-JobKind = Literal["audio_inference", "interview_analysis", "photo_analysis"]
+JobKind = Literal["audio_inference", "interview_analysis", "photo_analysis", "question_translation"]
 JobStatus = Literal[
     "pending",
     "processing",
@@ -35,7 +35,7 @@ MessageType = Literal["stop_message", "field_notes"]
 InterviewLanguage = Literal["en", "ms", "ta", "zh"]
 ResultSource = Literal["fake", "ollama", "nim", "regex_fallback"]
 AnalysisSource = Literal["fake", "ollama", "nim"]
-WorkerPhase = Literal["transcribe", "extract", "analyze_interview", "analyze_photo"]
+WorkerPhase = Literal["transcribe", "extract", "analyze_interview", "analyze_photo", "translate_questions"]
 QuestionCoverageStatus = Literal["answered", "partial", "unanswered", "unclear"]
 
 
@@ -49,11 +49,30 @@ class InterviewQuestion(BaseModel):
     id: str = Field(..., min_length=1)
     prompt: str = Field(..., min_length=1)
     hint: str | None = None
+    section: str | None = None
 
 
 class AnalyzeInterviewRequest(BaseModel):
     transcript: str = Field(..., min_length=1)
     questions: list[InterviewQuestion] = Field(..., min_length=1)
+    interview_language: InterviewLanguage = "en"
+
+
+class TranslateQuestionsRequest(BaseModel):
+    questions: list[InterviewQuestion] = Field(..., min_length=1)
+    interview_language: InterviewLanguage
+
+
+class TranslatedInterviewQuestion(BaseModel):
+    id: str
+    prompt_conduct: str
+    hint_conduct: str | None = None
+    section_conduct: str | None = None
+
+
+class QuestionTranslationResult(BaseModel):
+    questions: list[TranslatedInterviewQuestion]
+    source: AnalysisSource = "fake"
 
 
 class QuestionCoverage(BaseModel):
@@ -66,6 +85,7 @@ class QuestionCoverage(BaseModel):
 class FollowUpSuggestion(BaseModel):
     related_question_id: str | None = None
     prompt: str
+    prompt_conduct: str
     reason: str
 
 
@@ -73,6 +93,9 @@ class InterviewAnalysisResult(BaseModel):
     coverage: list[QuestionCoverage]
     follow_ups: list[FollowUpSuggestion]
     source: AnalysisSource = "fake"
+
+
+AnalysisJobResult = Union[InterviewAnalysisResult, QuestionTranslationResult]
 
 
 SuggestedPhotoSection = Literal[
@@ -135,7 +158,7 @@ class JobRecord(BaseModel):
     transcript_english: str | None = None
     analysis_questions: list[InterviewQuestion] | None = None
     result: InferenceResult | None = None
-    analysis_result: InterviewAnalysisResult | None = None
+    analysis_result: AnalysisJobResult | None = None
     photo_path: str | None = None
     photo_context: AnalyzePhotoContext | None = None
     photo_analysis_result: PhotoAnalysisResult | None = None
@@ -156,7 +179,7 @@ class JobResponse(BaseModel):
     transcript_english: str | None = None
     analysis_questions: list[InterviewQuestion] | None = None
     result: InferenceResult | None = None
-    analysis_result: InterviewAnalysisResult | None = None
+    analysis_result: AnalysisJobResult | None = None
     photo_path: str | None = None
     photo_context: AnalyzePhotoContext | None = None
     photo_analysis_result: PhotoAnalysisResult | None = None
@@ -196,6 +219,10 @@ class WorkerAnalysisCompleteRequest(BaseModel):
 
 class WorkerPhotoAnalysisCompleteRequest(BaseModel):
     result: PhotoAnalysisResult
+
+
+class WorkerQuestionTranslationCompleteRequest(BaseModel):
+    result: QuestionTranslationResult
 
 
 class ExtractJobRequest(BaseModel):

@@ -12,6 +12,7 @@ from app.schemas import (
     JobRecord,
     MessageType,
     PhotoAnalysisResult,
+    QuestionTranslationResult,
 )
 from app.storage.protocol import StorageBackend
 
@@ -56,6 +57,7 @@ class MemoryStorage:
         *,
         transcript: str,
         questions: list[InterviewQuestion],
+        interview_language: InterviewLanguage | None = None,
     ) -> JobRecord:
         job_id = uuid4()
         now = datetime.now(UTC)
@@ -69,6 +71,30 @@ class MemoryStorage:
             message_type="field_notes",
             transcript=transcript,
             analysis_questions=questions,
+            interview_language=interview_language,
+        )
+        async with self._lock:
+            self._jobs[job_id] = job
+        return job
+
+    async def create_translate_questions_job(
+        self,
+        *,
+        questions: list[InterviewQuestion],
+        interview_language: InterviewLanguage,
+    ) -> JobRecord:
+        job_id = uuid4()
+        now = datetime.now(UTC)
+        job = JobRecord(
+            id=job_id,
+            created_at=now,
+            updated_at=now,
+            status="analyze_pending",
+            job_kind="question_translation",
+            audio_path=None,
+            message_type="field_notes",
+            analysis_questions=questions,
+            interview_language=interview_language,
         )
         async with self._lock:
             self._jobs[job_id] = job
@@ -228,6 +254,31 @@ class MemoryStorage:
             if job.status != "processing":
                 raise ValueError(
                     f"Job {job_id} cannot complete analysis from status {job.status}"
+                )
+            now = datetime.now(UTC)
+            updated = job.model_copy(
+                update={
+                    "status": "completed",
+                    "analysis_result": result,
+                    "error": None,
+                    "updated_at": now,
+                    "completed_at": now,
+                }
+            )
+            self._jobs[job_id] = updated
+            return updated
+
+    async def complete_question_translation(
+        self,
+        job_id: UUID,
+        *,
+        result: QuestionTranslationResult,
+    ) -> JobRecord:
+        async with self._lock:
+            job = self._require_job(job_id)
+            if job.status != "processing":
+                raise ValueError(
+                    f"Job {job_id} cannot complete question translation from status {job.status}"
                 )
             now = datetime.now(UTC)
             updated = job.model_copy(
