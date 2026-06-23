@@ -1,7 +1,15 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.schemas import InferenceResult, InterviewAnalysisResult, InterviewQuestion, JobRecord, MessageType
+from app.schemas import (
+    AnalyzePhotoContext,
+    InferenceResult,
+    InterviewAnalysisResult,
+    InterviewQuestion,
+    JobRecord,
+    MessageType,
+    PhotoAnalysisResult,
+)
 
 
 class StorageBackend(Protocol):
@@ -19,6 +27,14 @@ class StorageBackend(Protocol):
         *,
         transcript: str,
         questions: list[InterviewQuestion],
+    ) -> JobRecord: ...
+
+    async def create_photo_analyze_job(
+        self,
+        *,
+        image_bytes: bytes,
+        filename: str,
+        context: AnalyzePhotoContext,
     ) -> JobRecord: ...
 
     async def get_job(self, job_id: UUID) -> JobRecord | None: ...
@@ -55,8 +71,19 @@ class StorageBackend(Protocol):
         result: InterviewAnalysisResult,
     ) -> JobRecord: ...
 
+    async def complete_photo_analysis(
+        self,
+        job_id: UUID,
+        *,
+        result: PhotoAnalysisResult,
+    ) -> JobRecord: ...
+
     async def fail_job(self, job_id: UUID, *, error: str) -> JobRecord: ...
 
     async def get_audio_bytes(self, job_id: UUID) -> tuple[bytes, str] | None: ...
 
+    async def get_image_bytes(self, job_id: UUID) -> tuple[bytes, str] | None: ...
+
     def audio_download_url(self, job_id: UUID) -> str: ...
+
+    def image_download_url(self, job_id: UUID) -> str: ...

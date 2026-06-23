@@ -7,11 +7,13 @@ from supabase import Client, create_client
 
 from app.config import Settings
 from app.schemas import (
+    AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
     InterviewQuestion,
     JobRecord,
     MessageType,
+    PhotoAnalysisResult,
 )
 from app.storage.protocol import StorageBackend
 
@@ -42,6 +44,18 @@ def _row_to_job(row: dict) -> JobRecord:
         if questions_data
         else None
     )
+    photo_context_data = row.get("photo_context")
+    photo_context = (
+        AnalyzePhotoContext.model_validate(photo_context_data)
+        if photo_context_data
+        else None
+    )
+    photo_analysis_result_data = row.get("photo_analysis_result")
+    photo_analysis_result = (
+        PhotoAnalysisResult.model_validate(photo_analysis_result_data)
+        if photo_analysis_result_data
+        else None
+    )
     return JobRecord(
         id=UUID(str(row["id"])),
         created_at=_parse_datetime(row["created_at"]),
@@ -55,6 +69,9 @@ def _row_to_job(row: dict) -> JobRecord:
         analysis_questions=analysis_questions,
         result=result,
         analysis_result=analysis_result,
+        photo_path=row.get("photo_path"),
+        photo_context=photo_context,
+        photo_analysis_result=photo_analysis_result,
         error=row.get("error"),
         claimed_at=_parse_datetime(row["claimed_at"]) if row.get("claimed_at") else None,
         completed_at=_parse_datetime(row["completed_at"]) if row.get("completed_at") else None,
@@ -69,6 +86,7 @@ class SupabaseStorage:
             settings.supabase_service_role_key,
         )
         self._bucket = settings.supabase_audio_bucket
+        self._photo_bucket = settings.supabase_photo_bucket
 
     async def create_job(
         self,
@@ -118,6 +136,37 @@ class SupabaseStorage:
                 "message_type": "field_notes",
                 "transcript": transcript,
                 "analysis_questions": [q.model_dump(mode="json") for q in questions],
+            }
+            response = self._client.table(TABLE).insert(row).execute()
+            return _row_to_job(response.data[0])
+
+        return await asyncio.to_thread(_create)
+
+    async def create_photo_analyze_job(
+        self,
+        *,
+        image_bytes: bytes,
+        filename: str,
+        context: AnalyzePhotoContext,
+    ) -> JobRecord:
+        job_id = uuid4()
+        photo_path = f"{job_id}/{filename}"
+
+        def _create() -> JobRecord:
+            storage = self._client.storage.from_(self._photo_bucket)
+            storage.upload(
+                photo_path,
+                image_bytes,
+                file_options={"content-type": _image_content_type(filename), "upsert": "true"},
+            )
+            row = {
+                "id": str(job_id),
+                "status": "analyze_pending",
+                "job_kind": "photo_analysis",
+                "audio_path": None,
+                "message_type": "field_notes",
+                "photo_path": photo_path,
+                "photo_context": context.model_dump(mode="json"),
             }
             response = self._client.table(TABLE).insert(row).execute()
             return _row_to_job(response.data[0])
@@ -271,6 +320,35 @@ class SupabaseStorage:
 
         return await asyncio.to_thread(_complete)
 
+    async def complete_photo_analysis(
+        self,
+        job_id: UUID,
+        *,
+        result: PhotoAnalysisResult,
+    ) -> JobRecord:
+        def _complete() -> JobRecord:
+            job = self._require_job_sync(job_id)
+            if job.status != "processing":
+                raise ValueError(
+                    f"Job {job_id} cannot complete photo analysis from status {job.status}"
+                )
+            now = datetime.now(UTC).isoformat()
+            update = {
+                "status": "completed",
+                "photo_analysis_result": result.model_dump(mode="json"),
+                "error": None,
+                "completed_at": now,
+            }
+            response = (
+                self._client.table(TABLE)
+                .update(update)
+                .eq("id", str(job_id))
+                .execute()
+            )
+            return _row_to_job(response.data[0])
+
+        return await asyncio.to_thread(_complete)
+
     async def fail_job(self, job_id: UUID, *, error: str) -> JobRecord:
         def _fail() -> JobRecord:
             job = self._require_job_sync(job_id)
@@ -304,9 +382,25 @@ class SupabaseStorage:
 
         return await asyncio.to_thread(_download)
 
+    async def get_image_bytes(self, job_id: UUID) -> tuple[bytes, str] | None:
+        def _download() -> tuple[bytes, str] | None:
+            job = self._get_job_sync(job_id)
+            if job is None or not job.get("photo_path"):
+                return None
+            photo_path = job["photo_path"]
+            filename = photo_path.rsplit("/", 1)[-1]
+            data = self._client.storage.from_(self._photo_bucket).download(photo_path)
+            return bytes(data), filename
+
+        return await asyncio.to_thread(_download)
+
     def audio_download_url(self, job_id: UUID) -> str:
         base = self._settings.coordinator_base_url.rstrip("/")
         return f"{base}/v1/worker/jobs/{job_id}/audio"
+
+    def image_download_url(self, job_id: UUID) -> str:
+        base = self._settings.coordinator_base_url.rstrip("/")
+        return f"{base}/v1/worker/jobs/{job_id}/image"
 
     def _get_job_sync(self, job_id: UUID) -> dict | None:
         response = (
@@ -331,6 +425,17 @@ def _content_type(filename: str) -> str:
         return "audio/wav"
     if lower.endswith(".webm"):
         return "audio/webm"
+    return "application/octet-stream"
+
+
+def _image_content_type(filename: str) -> str:
+    lower = filename.lower()
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith((".jpg", ".jpeg")):
+        return "image/jpeg"
+    if lower.endswith(".webp"):
+        return "image/webp"
     return "application/octet-stream"
 
 

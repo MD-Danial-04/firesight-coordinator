@@ -50,6 +50,8 @@ spec:
                   key: SUPABASE_SERVICE_ROLE_KEY
             - name: SUPABASE_AUDIO_BUCKET
               value: inference-audio
+            - name: SUPABASE_PHOTO_BUCKET
+              value: inference-photos
             - name: COORDINATOR_BASE_URL
               valueFrom:
                 secretKeyRef:

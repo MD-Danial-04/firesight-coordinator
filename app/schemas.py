@@ -21,7 +21,7 @@ ExtractableField = Literal[
     "handoverNpc",
 ]
 
-JobKind = Literal["audio_inference", "interview_analysis"]
+JobKind = Literal["audio_inference", "interview_analysis", "photo_analysis"]
 JobStatus = Literal[
     "pending",
     "processing",
@@ -34,7 +34,7 @@ JobStatus = Literal[
 MessageType = Literal["stop_message", "field_notes"]
 ResultSource = Literal["fake", "ollama", "nim", "regex_fallback"]
 AnalysisSource = Literal["fake", "ollama", "nim"]
-WorkerPhase = Literal["transcribe", "extract", "analyze_interview"]
+WorkerPhase = Literal["transcribe", "extract", "analyze_interview", "analyze_photo"]
 QuestionCoverageStatus = Literal["answered", "partial", "unanswered", "unclear"]
 
 
@@ -98,6 +98,13 @@ class PhotoAnalysisResult(BaseModel):
     source: PhotoAnalysisSource = "fake"
 
 
+class AnalyzePhotoContext(BaseModel):
+    location_of_fire: str | None = None
+    incident_type_name: str | None = None
+    stop_message_excerpt: str | None = None
+    field_notes_excerpt: str | None = None
+
+
 class JobRecord(BaseModel):
     id: UUID
     created_at: datetime
@@ -111,6 +118,9 @@ class JobRecord(BaseModel):
     analysis_questions: list[InterviewQuestion] | None = None
     result: InferenceResult | None = None
     analysis_result: InterviewAnalysisResult | None = None
+    photo_path: str | None = None
+    photo_context: AnalyzePhotoContext | None = None
+    photo_analysis_result: PhotoAnalysisResult | None = None
     error: str | None = None
     claimed_at: datetime | None = None
     completed_at: datetime | None = None
@@ -126,6 +136,9 @@ class JobResponse(BaseModel):
     analysis_questions: list[InterviewQuestion] | None = None
     result: InferenceResult | None = None
     analysis_result: InterviewAnalysisResult | None = None
+    photo_path: str | None = None
+    photo_context: AnalyzePhotoContext | None = None
+    photo_analysis_result: PhotoAnalysisResult | None = None
     error: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -136,8 +149,10 @@ class WorkerClaimResponse(BaseModel):
     job_id: UUID
     phase: WorkerPhase
     audio_download_url: str | None = None
+    image_download_url: str | None = None
     transcript: str | None = None
     analysis_questions: list[InterviewQuestion] | None = None
+    photo_context: AnalyzePhotoContext | None = None
     message_type: MessageType
     incident_type_name: str | None = None
 
@@ -152,6 +167,10 @@ class WorkerExtractCompleteRequest(BaseModel):
 
 class WorkerAnalysisCompleteRequest(BaseModel):
     result: InterviewAnalysisResult
+
+
+class WorkerPhotoAnalysisCompleteRequest(BaseModel):
+    result: PhotoAnalysisResult
 
 
 class ExtractJobRequest(BaseModel):

@@ -4,8 +4,12 @@ Run migrations in order in the Supabase SQL editor (or via `supabase db push` if
 
 1. [`001_inference_jobs.sql`](./001_inference_jobs.sql) — base table
 2. [`002_realtime_rls_claim.sql`](./002_realtime_rls_claim.sql) — claim RPC, Realtime, RLS, bucket
+3. [`004_interview_analysis_jobs.sql`](./004_interview_analysis_jobs.sql) — interview analysis jobs
+4. [`005_photo_analysis_jobs.sql`](./005_photo_analysis_jobs.sql) — photo analysis jobs + `inference-photos` bucket
 
 If the bucket insert in `002` fails, create **`inference-audio`** manually in Dashboard → Storage (private bucket).
+
+If the bucket insert in `005` fails, create **`inference-photos`** manually in Dashboard → Storage (private bucket).
 
 ## API keys
 
@@ -27,6 +31,7 @@ USE_FAKE_STORAGE=false
 SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<sb_secret_... or legacy service_role JWT>
 SUPABASE_AUDIO_BUCKET=inference-audio
+SUPABASE_PHOTO_BUCKET=inference-photos
 WEB_API_KEY=<strong-key>
 WORKER_API_KEY=<strong-key>
 COORDINATOR_BASE_URL=http://localhost:8080

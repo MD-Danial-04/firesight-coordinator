@@ -3,7 +3,15 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from app.config import settings
-from app.schemas import InferenceResult, InterviewAnalysisResult, InterviewQuestion, JobRecord, MessageType
+from app.schemas import (
+    AnalyzePhotoContext,
+    InferenceResult,
+    InterviewAnalysisResult,
+    InterviewQuestion,
+    JobRecord,
+    MessageType,
+    PhotoAnalysisResult,
+)
 from app.storage.protocol import StorageBackend
 
 
@@ -11,6 +19,7 @@ class MemoryStorage:
     def __init__(self) -> None:
         self._jobs: dict[UUID, JobRecord] = {}
         self._audio: dict[UUID, tuple[bytes, str]] = {}
+        self._images: dict[UUID, tuple[bytes, str]] = {}
         self._lock = asyncio.Lock()
 
     async def create_job(
@@ -60,6 +69,32 @@ class MemoryStorage:
         )
         async with self._lock:
             self._jobs[job_id] = job
+        return job
+
+    async def create_photo_analyze_job(
+        self,
+        *,
+        image_bytes: bytes,
+        filename: str,
+        context: AnalyzePhotoContext,
+    ) -> JobRecord:
+        job_id = uuid4()
+        now = datetime.now(UTC)
+        photo_path = f"memory://{job_id}/{filename}"
+        job = JobRecord(
+            id=job_id,
+            created_at=now,
+            updated_at=now,
+            status="analyze_pending",
+            job_kind="photo_analysis",
+            audio_path=None,
+            message_type="field_notes",
+            photo_path=photo_path,
+            photo_context=context,
+        )
+        async with self._lock:
+            self._jobs[job_id] = job
+            self._images[job_id] = (image_bytes, filename)
         return job
 
     async def get_job(self, job_id: UUID) -> JobRecord | None:
@@ -196,6 +231,31 @@ class MemoryStorage:
             self._jobs[job_id] = updated
             return updated
 
+    async def complete_photo_analysis(
+        self,
+        job_id: UUID,
+        *,
+        result: PhotoAnalysisResult,
+    ) -> JobRecord:
+        async with self._lock:
+            job = self._require_job(job_id)
+            if job.status != "processing":
+                raise ValueError(
+                    f"Job {job_id} cannot complete photo analysis from status {job.status}"
+                )
+            now = datetime.now(UTC)
+            updated = job.model_copy(
+                update={
+                    "status": "completed",
+                    "photo_analysis_result": result,
+                    "error": None,
+                    "updated_at": now,
+                    "completed_at": now,
+                }
+            )
+            self._jobs[job_id] = updated
+            return updated
+
     async def fail_job(self, job_id: UUID, *, error: str) -> JobRecord:
         async with self._lock:
             job = self._require_job(job_id)
@@ -216,9 +276,16 @@ class MemoryStorage:
     async def get_audio_bytes(self, job_id: UUID) -> tuple[bytes, str] | None:
         return self._audio.get(job_id)
 
+    async def get_image_bytes(self, job_id: UUID) -> tuple[bytes, str] | None:
+        return self._images.get(job_id)
+
     def audio_download_url(self, job_id: UUID) -> str:
         base = settings.coordinator_base_url.rstrip("/")
         return f"{base}/v1/worker/jobs/{job_id}/audio"
+
+    def image_download_url(self, job_id: UUID) -> str:
+        base = settings.coordinator_base_url.rstrip("/")
+        return f"{base}/v1/worker/jobs/{job_id}/image"
 
     def _require_job(self, job_id: UUID) -> JobRecord:
         job = self._jobs.get(job_id)

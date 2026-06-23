@@ -38,9 +38,15 @@ Default mode uses in-memory storage (`USE_FAKE_STORAGE=true`) — no Supabase re
 | POST | `/v1/jobs` | web key | Upload audio + create job |
 | GET | `/v1/jobs/{id}` | web key | Get job status and results |
 | GET | `/v1/jobs/{id}/events` | web key | SSE status stream |
+| POST | `/v1/analyze-interview` | web key | Create interview analysis job |
+| POST | `/v1/analyze-photo` | web key | Upload fire-scene photo + create analysis job |
 | POST | `/v1/worker/claim` | worker key | Claim next pending job |
 | GET | `/v1/worker/jobs/{id}/audio` | worker key | Download job audio |
-| POST | `/v1/worker/jobs/{id}/complete` | worker key | Submit transcript + extracted fields |
+| GET | `/v1/worker/jobs/{id}/image` | worker key | Download job image |
+| POST | `/v1/worker/jobs/{id}/transcribe` | worker key | Complete transcription phase |
+| POST | `/v1/worker/jobs/{id}/complete-extraction` | worker key | Complete extraction phase |
+| POST | `/v1/worker/jobs/{id}/complete-analysis` | worker key | Complete interview analysis |
+| POST | `/v1/worker/jobs/{id}/complete-photo-analysis` | worker key | Complete photo analysis |
 | POST | `/v1/worker/jobs/{id}/fail` | worker key | Mark job failed |
 
 ## Example flow (curl)

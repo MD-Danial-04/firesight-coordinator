@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_service_role_key: str = ""
     supabase_audio_bucket: str = "inference-audio"
+    supabase_photo_bucket: str = "inference-photos"
 
     cors_origins: str = "http://localhost:5173"
 

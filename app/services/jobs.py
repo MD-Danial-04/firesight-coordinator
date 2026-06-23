@@ -4,11 +4,13 @@ from fastapi import HTTPException, status
 
 from app.schemas import (
     AnalyzeInterviewRequest,
+    AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
     JobRecord,
     JobResponse,
     MessageType,
+    PhotoAnalysisResult,
     WorkerClaimResponse,
 )
 from app.storage.protocol import StorageBackend
@@ -25,6 +27,9 @@ def job_to_response(job: JobRecord) -> JobResponse:
         analysis_questions=job.analysis_questions,
         result=job.result,
         analysis_result=job.analysis_result,
+        photo_path=job.photo_path,
+        photo_context=job.photo_context,
+        photo_analysis_result=job.photo_analysis_result,
         error=job.error,
         created_at=job.created_at,
         updated_at=job.updated_at,
@@ -61,6 +66,21 @@ async def create_analyze_job(
     return job_to_response(job)
 
 
+async def create_photo_analyze_job(
+    storage: StorageBackend,
+    *,
+    image_bytes: bytes,
+    filename: str,
+    context: AnalyzePhotoContext,
+) -> JobResponse:
+    job = await storage.create_photo_analyze_job(
+        image_bytes=image_bytes,
+        filename=filename,
+        context=context,
+    )
+    return job_to_response(job)
+
+
 async def get_job(storage: StorageBackend, job_id: UUID) -> JobResponse:
     job = await storage.get_job(job_id)
     if job is None:
@@ -79,6 +99,16 @@ async def claim_next_job(storage: StorageBackend) -> WorkerClaimResponse | None:
             phase="analyze_interview",
             transcript=job.transcript,
             analysis_questions=job.analysis_questions,
+            message_type=job.message_type,
+            incident_type_name=job.incident_type_name,
+        )
+
+    if job.job_kind == "photo_analysis":
+        return WorkerClaimResponse(
+            job_id=job.id,
+            phase="analyze_photo",
+            image_download_url=storage.image_download_url(job.id),
+            photo_context=job.photo_context,
             message_type=job.message_type,
             incident_type_name=job.incident_type_name,
         )
@@ -154,6 +184,21 @@ async def complete_analysis(
 ) -> JobResponse:
     try:
         job = await storage.complete_analysis(job_id, result=result)
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return job_to_response(job)
+
+
+async def complete_photo_analysis(
+    storage: StorageBackend,
+    job_id: UUID,
+    *,
+    result: PhotoAnalysisResult,
+) -> JobResponse:
+    try:
+        job = await storage.complete_photo_analysis(job_id, result=result)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
     except ValueError as exc:

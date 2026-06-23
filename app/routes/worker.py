@@ -10,6 +10,7 @@ from app.schemas import (
     WorkerClaimResponse,
     WorkerExtractCompleteRequest,
     WorkerFailRequest,
+    WorkerPhotoAnalysisCompleteRequest,
     WorkerTranscribeRequest,
 )
 from app.services import jobs as job_service
@@ -42,6 +43,28 @@ async def download_job_audio(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio not found")
     content, filename = audio
     media_type = "audio/wav" if filename.endswith(".wav") else "application/octet-stream"
+    return Response(content=content, media_type=media_type)
+
+
+@router.get("/jobs/{job_id}/image")
+async def download_job_image(
+    job_id: UUID,
+    _: None = Depends(verify_worker_token),
+    storage: StorageBackend = Depends(get_storage),
+) -> Response:
+    image = await storage.get_image_bytes(job_id)
+    if image is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+    content, filename = image
+    lower = filename.lower()
+    if lower.endswith(".png"):
+        media_type = "image/png"
+    elif lower.endswith((".jpg", ".jpeg")):
+        media_type = "image/jpeg"
+    elif lower.endswith(".webp"):
+        media_type = "image/webp"
+    else:
+        media_type = "application/octet-stream"
     return Response(content=content, media_type=media_type)
 
 
@@ -81,6 +104,20 @@ async def complete_analysis(
     storage: StorageBackend = Depends(get_storage),
 ) -> JobResponse:
     return await job_service.complete_analysis(
+        storage,
+        job_id,
+        result=body.result,
+    )
+
+
+@router.post("/jobs/{job_id}/complete-photo-analysis", response_model=JobResponse)
+async def complete_photo_analysis(
+    job_id: UUID,
+    body: WorkerPhotoAnalysisCompleteRequest,
+    _: None = Depends(verify_worker_token),
+    storage: StorageBackend = Depends(get_storage),
+) -> JobResponse:
+    return await job_service.complete_photo_analysis(
         storage,
         job_id,
         result=body.result,
