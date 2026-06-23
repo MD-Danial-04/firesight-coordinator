@@ -79,6 +79,9 @@ async def complete_transcription(
         storage,
         job_id,
         transcript=body.transcript,
+        transcript_original=body.transcript_original,
+        transcript_english=body.transcript_english,
+        interview_language=body.interview_language,
     )
 
 

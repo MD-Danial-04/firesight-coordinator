@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.responses import StreamingResponse
 
 from app.auth import verify_web_token
-from app.schemas import ExtractJobRequest, JobResponse, MessageType
+from app.schemas import ExtractJobRequest, InterviewLanguage, JobResponse, MessageType
 from app.services import jobs as job_service
 from app.storage import get_storage_backend
 from app.storage.protocol import StorageBackend
@@ -23,6 +23,7 @@ async def create_job(
     file: UploadFile = File(...),
     message_type: MessageType = Form("stop_message"),
     incident_type_name: str | None = Form(None),
+    interview_language: InterviewLanguage | None = Form(None),
     _: None = Depends(verify_web_token),
     storage: StorageBackend = Depends(get_storage),
 ) -> JobResponse:
@@ -36,6 +37,7 @@ async def create_job(
         filename=filename,
         message_type=message_type,
         incident_type_name=incident_type_name,
+        interview_language=interview_language,
     )
 
 

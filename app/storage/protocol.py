@@ -5,6 +5,7 @@ from app.schemas import (
     AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
+    InterviewLanguage,
     InterviewQuestion,
     JobRecord,
     MessageType,
@@ -20,6 +21,7 @@ class StorageBackend(Protocol):
         filename: str,
         message_type: MessageType,
         incident_type_name: str | None,
+        interview_language: InterviewLanguage | None = None,
     ) -> JobRecord: ...
 
     async def create_analyze_job(
@@ -46,6 +48,9 @@ class StorageBackend(Protocol):
         job_id: UUID,
         *,
         transcript: str,
+        transcript_original: str | None = None,
+        transcript_english: str | None = None,
+        interview_language: InterviewLanguage | None = None,
     ) -> JobRecord: ...
 
     async def request_extraction(

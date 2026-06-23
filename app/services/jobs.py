@@ -7,6 +7,7 @@ from app.schemas import (
     AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
+    InterviewLanguage,
     JobRecord,
     JobResponse,
     MessageType,
@@ -24,6 +25,9 @@ def job_to_response(job: JobRecord) -> JobResponse:
         message_type=job.message_type,
         incident_type_name=job.incident_type_name,
         transcript=job.transcript,
+        interview_language=job.interview_language,
+        transcript_original=job.transcript_original,
+        transcript_english=job.transcript_english,
         analysis_questions=job.analysis_questions,
         result=job.result,
         analysis_result=job.analysis_result,
@@ -44,12 +48,14 @@ async def create_job(
     filename: str,
     message_type: MessageType,
     incident_type_name: str | None,
+    interview_language: InterviewLanguage | None = None,
 ) -> JobResponse:
     job = await storage.create_job(
         audio_bytes=audio_bytes,
         filename=filename,
         message_type=message_type,
         incident_type_name=incident_type_name,
+        interview_language=interview_language,
     )
     return job_to_response(job)
 
@@ -121,6 +127,7 @@ async def claim_next_job(storage: StorageBackend) -> WorkerClaimResponse | None:
         transcript=job.transcript if phase == "extract" else None,
         message_type=job.message_type,
         incident_type_name=job.incident_type_name,
+        interview_language=job.interview_language if phase == "transcribe" else None,
     )
 
 
@@ -129,9 +136,18 @@ async def complete_transcription(
     job_id: UUID,
     *,
     transcript: str,
+    transcript_original: str | None = None,
+    transcript_english: str | None = None,
+    interview_language: InterviewLanguage | None = None,
 ) -> JobResponse:
     try:
-        job = await storage.complete_transcription(job_id, transcript=transcript)
+        job = await storage.complete_transcription(
+            job_id,
+            transcript=transcript,
+            transcript_original=transcript_original,
+            transcript_english=transcript_english,
+            interview_language=interview_language,
+        )
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
     except ValueError as exc:

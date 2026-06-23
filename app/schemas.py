@@ -32,6 +32,7 @@ JobStatus = Literal[
     "failed",
 ]
 MessageType = Literal["stop_message", "field_notes"]
+InterviewLanguage = Literal["en", "ms", "ta", "zh"]
 ResultSource = Literal["fake", "ollama", "nim", "regex_fallback"]
 AnalysisSource = Literal["fake", "ollama", "nim"]
 WorkerPhase = Literal["transcribe", "extract", "analyze_interview", "analyze_photo"]
@@ -129,6 +130,9 @@ class JobRecord(BaseModel):
     message_type: MessageType = "stop_message"
     incident_type_name: str | None = None
     transcript: str | None = None
+    interview_language: InterviewLanguage | None = None
+    transcript_original: str | None = None
+    transcript_english: str | None = None
     analysis_questions: list[InterviewQuestion] | None = None
     result: InferenceResult | None = None
     analysis_result: InterviewAnalysisResult | None = None
@@ -147,6 +151,9 @@ class JobResponse(BaseModel):
     message_type: MessageType
     incident_type_name: str | None = None
     transcript: str | None = None
+    interview_language: InterviewLanguage | None = None
+    transcript_original: str | None = None
+    transcript_english: str | None = None
     analysis_questions: list[InterviewQuestion] | None = None
     result: InferenceResult | None = None
     analysis_result: InterviewAnalysisResult | None = None
@@ -169,10 +176,14 @@ class WorkerClaimResponse(BaseModel):
     photo_context: AnalyzePhotoContext | None = None
     message_type: MessageType
     incident_type_name: str | None = None
+    interview_language: InterviewLanguage | None = None
 
 
 class WorkerTranscribeRequest(BaseModel):
     transcript: str = Field(..., min_length=1)
+    transcript_original: str | None = None
+    transcript_english: str | None = None
+    interview_language: InterviewLanguage | None = None
 
 
 class WorkerExtractCompleteRequest(BaseModel):

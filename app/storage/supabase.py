@@ -10,6 +10,7 @@ from app.schemas import (
     AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
+    InterviewLanguage,
     InterviewQuestion,
     JobRecord,
     MessageType,
@@ -66,6 +67,9 @@ def _row_to_job(row: dict) -> JobRecord:
         message_type=row["message_type"],
         incident_type_name=row.get("incident_type_name"),
         transcript=row.get("transcript"),
+        interview_language=row.get("interview_language"),
+        transcript_original=row.get("transcript_original"),
+        transcript_english=row.get("transcript_english"),
         analysis_questions=analysis_questions,
         result=result,
         analysis_result=analysis_result,
@@ -95,6 +99,7 @@ class SupabaseStorage:
         filename: str,
         message_type: MessageType,
         incident_type_name: str | None,
+        interview_language: InterviewLanguage | None = None,
     ) -> JobRecord:
         job_id = uuid4()
         audio_path = f"{job_id}/{filename}"
@@ -114,6 +119,8 @@ class SupabaseStorage:
                 "message_type": message_type,
                 "incident_type_name": incident_type_name,
             }
+            if interview_language is not None:
+                row["interview_language"] = interview_language
             response = self._client.table(TABLE).insert(row).execute()
             return _row_to_job(response.data[0])
 
@@ -203,6 +210,9 @@ class SupabaseStorage:
         job_id: UUID,
         *,
         transcript: str,
+        transcript_original: str | None = None,
+        transcript_english: str | None = None,
+        interview_language: InterviewLanguage | None = None,
     ) -> JobRecord:
         def _complete() -> JobRecord:
             job = self._require_job_sync(job_id)
@@ -210,13 +220,19 @@ class SupabaseStorage:
                 raise ValueError(
                     f"Job {job_id} cannot be transcribed from status {job.status}"
                 )
+            english = transcript_english or transcript
+            original = transcript_original or english
             update = {
                 "status": "transcribed",
-                "transcript": transcript,
+                "transcript": english,
+                "transcript_original": original,
+                "transcript_english": english,
                 "result": None,
                 "error": None,
                 "completed_at": None,
             }
+            if interview_language is not None:
+                update["interview_language"] = interview_language
             response = (
                 self._client.table(TABLE)
                 .update(update)

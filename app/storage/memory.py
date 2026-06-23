@@ -7,6 +7,7 @@ from app.schemas import (
     AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
+    InterviewLanguage,
     InterviewQuestion,
     JobRecord,
     MessageType,
@@ -29,6 +30,7 @@ class MemoryStorage:
         filename: str,
         message_type: MessageType,
         incident_type_name: str | None,
+        interview_language: InterviewLanguage | None = None,
     ) -> JobRecord:
         job_id = uuid4()
         now = datetime.now(UTC)
@@ -42,6 +44,7 @@ class MemoryStorage:
             audio_path=audio_path,
             message_type=message_type,
             incident_type_name=incident_type_name,
+            interview_language=interview_language,
         )
         async with self._lock:
             self._jobs[job_id] = job
@@ -130,6 +133,9 @@ class MemoryStorage:
         job_id: UUID,
         *,
         transcript: str,
+        transcript_original: str | None = None,
+        transcript_english: str | None = None,
+        interview_language: InterviewLanguage | None = None,
     ) -> JobRecord:
         async with self._lock:
             job = self._require_job(job_id)
@@ -138,16 +144,21 @@ class MemoryStorage:
                     f"Job {job_id} cannot be transcribed from status {job.status}"
                 )
             now = datetime.now(UTC)
-            updated = job.model_copy(
-                update={
-                    "status": "transcribed",
-                    "transcript": transcript,
-                    "result": None,
-                    "error": None,
-                    "updated_at": now,
-                    "completed_at": None,
-                }
-            )
+            english = transcript_english or transcript
+            original = transcript_original or english
+            update_fields: dict = {
+                "status": "transcribed",
+                "transcript": english,
+                "transcript_original": original,
+                "transcript_english": english,
+                "result": None,
+                "error": None,
+                "updated_at": now,
+                "completed_at": None,
+            }
+            if interview_language is not None:
+                update_fields["interview_language"] = interview_language
+            updated = job.model_copy(update=update_fields)
             self._jobs[job_id] = updated
             return updated
 
