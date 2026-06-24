@@ -34,6 +34,53 @@ SAMPLE_RESULT["fields"]["applianceCallSign"] = "LF812"
 SAMPLE_RESULT["fields"]["locationOfFire"] = "7 Gul Ave"
 SAMPLE_RESULT["confidence"]["applianceCallSign"] = 0.95
 SAMPLE_RESULT["confidence"]["locationOfFire"] = 0.9
+SAMPLE_INTERVIEW_DETAILS = {
+    "fields": {
+        "name": "John Tan",
+        "nameChinese": "",
+        "designation": "Tenant",
+        "nric": "S1234567A",
+        "passportNo": "",
+        "nationality": "Singaporean",
+        "sex": "",
+        "age": "",
+        "dateAndPlaceOfBirth": "",
+        "maritalStatus": "",
+        "numberOfChildren": "",
+        "citizenshipCertNo": "",
+        "vehicleNo": "",
+        "address": "",
+        "placeOfEmployment": "",
+        "contactHome": "",
+        "contactMobile": "91234567",
+        "contactOffice": "",
+        "interviewTakenPlace": "",
+        "interpretedBy": "",
+    },
+    "confidence": {
+        "name": 0.9,
+        "nameChinese": 0.0,
+        "designation": 0.8,
+        "nric": 0.95,
+        "passportNo": 0.0,
+        "nationality": 0.7,
+        "sex": 0.0,
+        "age": 0.0,
+        "dateAndPlaceOfBirth": 0.0,
+        "maritalStatus": 0.0,
+        "numberOfChildren": 0.0,
+        "citizenshipCertNo": 0.0,
+        "vehicleNo": 0.0,
+        "address": 0.0,
+        "placeOfEmployment": 0.0,
+        "contactHome": 0.0,
+        "contactMobile": 0.9,
+        "contactOffice": 0.0,
+        "interviewTakenPlace": 0.0,
+        "interpretedBy": 0.0,
+    },
+    "source": "fake",
+}
 
 
 def test_create_job_requires_web_auth():
@@ -161,3 +208,54 @@ def test_fail_job():
     assert fail_response.status_code == 200
     assert fail_response.json()["status"] == "failed"
     assert fail_response.json()["error"] == "Whisper model failed to load"
+
+
+def test_interview_extraction_lifecycle():
+    create_response = client.post(
+        "/v1/jobs",
+        headers=WEB_HEADERS,
+        files={"file": ("sample.wav", b"audio-bytes", "audio/wav")},
+        data={"message_type": "interview", "interview_language": "en"},
+    )
+    assert create_response.status_code == 201
+    job_id = create_response.json()["id"]
+
+    claim_response = client.post("/v1/worker/claim", headers=WORKER_HEADERS)
+    assert claim_response.status_code == 200
+    assert claim_response.json()["phase"] == "transcribe"
+    assert claim_response.json()["message_type"] == "interview"
+
+    transcribe_response = client.post(
+        f"/v1/worker/jobs/{job_id}/transcribe",
+        headers=WORKER_HEADERS,
+        json={"transcript": "My name is John Tan."},
+    )
+    assert transcribe_response.status_code == 200
+
+    extract_request_response = client.post(
+        f"/v1/jobs/{job_id}/extract",
+        headers=WEB_HEADERS,
+        json={
+            "text": "My name is John Tan. NRIC S1234567A. Contact 91234567.",
+            "message_type": "interview",
+            "incident_type_name": None,
+        },
+    )
+    assert extract_request_response.status_code == 200
+    assert extract_request_response.json()["status"] == "extract_pending"
+
+    extract_claim_response = client.post("/v1/worker/claim", headers=WORKER_HEADERS)
+    assert extract_claim_response.status_code == 200
+    assert extract_claim_response.json()["phase"] == "extract"
+    assert extract_claim_response.json()["message_type"] == "interview"
+
+    complete_extraction_response = client.post(
+        f"/v1/worker/jobs/{job_id}/complete-extraction",
+        headers=WORKER_HEADERS,
+        json={"interview_details": SAMPLE_INTERVIEW_DETAILS},
+    )
+    assert complete_extraction_response.status_code == 200
+    completed = complete_extraction_response.json()
+    assert completed["status"] == "completed"
+    assert completed["interview_details_result"]["fields"]["name"] == "John Tan"
+    assert completed["result"] is None

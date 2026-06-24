@@ -31,7 +31,7 @@ JobStatus = Literal[
     "completed",
     "failed",
 ]
-MessageType = Literal["stop_message", "field_notes"]
+MessageType = Literal["stop_message", "field_notes", "interview"]
 InterviewLanguage = Literal["en", "ms", "ta", "zh"]
 ResultSource = Literal["fake", "ollama", "nim", "regex_fallback"]
 AnalysisSource = Literal["fake", "ollama", "nim"]
@@ -42,6 +42,36 @@ QuestionCoverageStatus = Literal["answered", "partial", "unanswered", "unclear"]
 class InferenceResult(BaseModel):
     fields: dict[ExtractableField, str]
     confidence: dict[ExtractableField, float]
+    source: ResultSource = "fake"
+
+
+InterviewExtractableField = Literal[
+    "name",
+    "nameChinese",
+    "designation",
+    "nric",
+    "passportNo",
+    "nationality",
+    "sex",
+    "age",
+    "dateAndPlaceOfBirth",
+    "maritalStatus",
+    "numberOfChildren",
+    "citizenshipCertNo",
+    "vehicleNo",
+    "address",
+    "placeOfEmployment",
+    "contactHome",
+    "contactMobile",
+    "contactOffice",
+    "interviewTakenPlace",
+    "interpretedBy",
+]
+
+
+class InterviewDetailsResult(BaseModel):
+    fields: dict[InterviewExtractableField, str]
+    confidence: dict[InterviewExtractableField, float]
     source: ResultSource = "fake"
 
 
@@ -138,6 +168,7 @@ class JobRecord(BaseModel):
     transcript_english: str | None = None
     analysis_questions: list[InterviewQuestion] | None = None
     result: InferenceResult | None = None
+    interview_details_result: InterviewDetailsResult | None = None
     analysis_result: InterviewAnalysisResult | None = None
     photo_path: str | None = None
     photo_context: AnalyzePhotoContext | None = None
@@ -159,6 +190,7 @@ class JobResponse(BaseModel):
     transcript_english: str | None = None
     analysis_questions: list[InterviewQuestion] | None = None
     result: InferenceResult | None = None
+    interview_details_result: InterviewDetailsResult | None = None
     analysis_result: InterviewAnalysisResult | None = None
     photo_path: str | None = None
     photo_context: AnalyzePhotoContext | None = None
@@ -190,7 +222,8 @@ class WorkerTranscribeRequest(BaseModel):
 
 
 class WorkerExtractCompleteRequest(BaseModel):
-    result: InferenceResult
+    result: InferenceResult | None = None
+    interview_details: InterviewDetailsResult | None = None
 
 
 class WorkerAnalysisCompleteRequest(BaseModel):

@@ -96,6 +96,7 @@ async def complete_extraction(
         storage,
         job_id,
         result=body.result,
+        interview_details=body.interview_details,
     )
 
 

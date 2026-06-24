@@ -10,6 +10,7 @@ from app.schemas import (
     AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
+    InterviewDetailsResult,
     InterviewLanguage,
     InterviewQuestion,
     JobRecord,
@@ -33,6 +34,12 @@ def _parse_datetime(value: str | datetime) -> datetime:
 def _row_to_job(row: dict) -> JobRecord:
     result_data = row.get("result")
     result = InferenceResult.model_validate(result_data) if result_data else None
+    interview_details_data = row.get("interview_details_result")
+    interview_details_result = (
+        InterviewDetailsResult.model_validate(interview_details_data)
+        if interview_details_data
+        else None
+    )
     analysis_result_data = row.get("analysis_result")
     analysis_result = None
     if analysis_result_data:
@@ -70,6 +77,7 @@ def _row_to_job(row: dict) -> JobRecord:
         transcript_english=row.get("transcript_english"),
         analysis_questions=analysis_questions,
         result=result,
+        interview_details_result=interview_details_result,
         analysis_result=analysis_result,
         photo_path=row.get("photo_path"),
         photo_context=photo_context,
@@ -265,6 +273,7 @@ class SupabaseStorage:
                 "message_type": message_type,
                 "incident_type_name": incident_type_name,
                 "result": None,
+                "interview_details_result": None,
                 "error": None,
                 "completed_at": None,
                 "updated_at": now,
@@ -283,7 +292,8 @@ class SupabaseStorage:
         self,
         job_id: UUID,
         *,
-        result: InferenceResult,
+        result: InferenceResult | None = None,
+        interview_details: InterviewDetailsResult | None = None,
     ) -> JobRecord:
         def _complete() -> JobRecord:
             job = self._require_job_sync(job_id)
@@ -294,7 +304,12 @@ class SupabaseStorage:
             now = datetime.now(UTC).isoformat()
             update = {
                 "status": "completed",
-                "result": result.model_dump(mode="json"),
+                "result": result.model_dump(mode="json") if result is not None else None,
+                "interview_details_result": (
+                    interview_details.model_dump(mode="json")
+                    if interview_details is not None
+                    else None
+                ),
                 "error": None,
                 "completed_at": now,
             }

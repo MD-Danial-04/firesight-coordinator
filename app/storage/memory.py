@@ -7,6 +7,7 @@ from app.schemas import (
     AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
+    InterviewDetailsResult,
     InterviewLanguage,
     InterviewQuestion,
     JobRecord,
@@ -184,6 +185,7 @@ class MemoryStorage:
                     "status": "extract_pending",
                     "transcript": text,
                     "result": None,
+                    "interview_details_result": None,
                     "error": None,
                     "message_type": message_type,
                     "incident_type_name": incident_type_name,
@@ -198,7 +200,8 @@ class MemoryStorage:
         self,
         job_id: UUID,
         *,
-        result: InferenceResult,
+        result: InferenceResult | None = None,
+        interview_details: InterviewDetailsResult | None = None,
     ) -> JobRecord:
         async with self._lock:
             job = self._require_job(job_id)
@@ -211,6 +214,7 @@ class MemoryStorage:
                 update={
                     "status": "completed",
                     "result": result,
+                    "interview_details_result": interview_details,
                     "error": None,
                     "updated_at": now,
                     "completed_at": now,

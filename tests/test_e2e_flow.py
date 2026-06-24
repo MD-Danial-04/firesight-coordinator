@@ -29,6 +29,32 @@ SAMPLE_RESULT = {
     "confidence": {"applianceCallSign": 0.95, "locationOfFire": 0.9},
     "source": "fake",
 }
+SAMPLE_INTERVIEW_DETAILS = {
+    "fields": {
+        "name": "John Tan",
+        "nameChinese": "",
+        "designation": "Tenant",
+        "nric": "S1234567A",
+        "passportNo": "",
+        "nationality": "Singaporean",
+        "sex": "",
+        "age": "",
+        "dateAndPlaceOfBirth": "",
+        "maritalStatus": "",
+        "numberOfChildren": "",
+        "citizenshipCertNo": "",
+        "vehicleNo": "",
+        "address": "",
+        "placeOfEmployment": "",
+        "contactHome": "",
+        "contactMobile": "91234567",
+        "contactOffice": "",
+        "interviewTakenPlace": "",
+        "interpretedBy": "",
+    },
+    "confidence": {"name": 0.95, "nric": 0.95, "contactMobile": 0.9},
+    "source": "fake",
+}
 
 
 def test_e2e_upload_claim_transcribe_extract_complete():
@@ -88,3 +114,50 @@ def test_e2e_upload_claim_transcribe_extract_complete():
     extraction_body = complete_extraction.json()
     assert extraction_body["status"] == "completed"
     assert extraction_body["result"]["fields"]["applianceCallSign"] == "LF812"
+
+
+def test_e2e_interview_extract_complete():
+    create = client.post(
+        "/v1/jobs",
+        headers=WEB_HEADERS,
+        files={"file": ("sample.wav", b"audio-bytes", "audio/wav")},
+        data={"message_type": "interview", "incident_type_name": "Interview"},
+    )
+    assert create.status_code == 201
+    job_id = create.json()["id"]
+
+    claim = client.post("/v1/worker/claim", headers=WORKER_HEADERS)
+    assert claim.status_code == 200
+    assert claim.json()["phase"] == "transcribe"
+
+    transcribe = client.post(
+        f"/v1/worker/jobs/{job_id}/transcribe",
+        headers=WORKER_HEADERS,
+        json={"transcript": "My name is John Tan."},
+    )
+    assert transcribe.status_code == 200
+
+    extract_request = client.post(
+        f"/v1/jobs/{job_id}/extract",
+        headers=WEB_HEADERS,
+        json={
+            "text": "My name is John Tan. NRIC S1234567A. Contact 91234567.",
+            "message_type": "interview",
+        },
+    )
+    assert extract_request.status_code == 200
+
+    extract_claim = client.post("/v1/worker/claim", headers=WORKER_HEADERS)
+    assert extract_claim.status_code == 200
+    assert extract_claim.json()["phase"] == "extract"
+    assert extract_claim.json()["message_type"] == "interview"
+
+    complete_extraction = client.post(
+        f"/v1/worker/jobs/{job_id}/complete-extraction",
+        headers=WORKER_HEADERS,
+        json={"interview_details": SAMPLE_INTERVIEW_DETAILS},
+    )
+    assert complete_extraction.status_code == 200
+    extraction_body = complete_extraction.json()
+    assert extraction_body["status"] == "completed"
+    assert extraction_body["interview_details_result"]["fields"]["name"] == "John Tan"

@@ -5,6 +5,7 @@ from app.schemas import (
     AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
+    InterviewDetailsResult,
     InterviewLanguage,
     InterviewQuestion,
     JobRecord,
@@ -67,7 +68,8 @@ class StorageBackend(Protocol):
         self,
         job_id: UUID,
         *,
-        result: InferenceResult,
+        result: InferenceResult | None = None,
+        interview_details: InterviewDetailsResult | None = None,
     ) -> JobRecord: ...
 
     async def complete_analysis(

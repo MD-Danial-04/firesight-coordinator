@@ -7,6 +7,7 @@ from app.schemas import (
     AnalyzePhotoContext,
     InferenceResult,
     InterviewAnalysisResult,
+    InterviewDetailsResult,
     InterviewLanguage,
     JobRecord,
     JobResponse,
@@ -30,6 +31,7 @@ def job_to_response(job: JobRecord) -> JobResponse:
         transcript_english=job.transcript_english,
         analysis_questions=job.analysis_questions,
         result=job.result,
+        interview_details_result=job.interview_details_result,
         analysis_result=job.analysis_result,
         photo_path=job.photo_path,
         photo_context=job.photo_context,
@@ -183,10 +185,15 @@ async def complete_extraction(
     storage: StorageBackend,
     job_id: UUID,
     *,
-    result: InferenceResult,
+    result: InferenceResult | None = None,
+    interview_details: InterviewDetailsResult | None = None,
 ) -> JobResponse:
     try:
-        job = await storage.complete_extraction(job_id, result=result)
+        job = await storage.complete_extraction(
+            job_id,
+            result=result,
+            interview_details=interview_details,
+        )
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
     except ValueError as exc:
