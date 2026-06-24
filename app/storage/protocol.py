@@ -10,7 +10,6 @@ from app.schemas import (
     JobRecord,
     MessageType,
     PhotoAnalysisResult,
-    QuestionTranslationResult,
 )
 
 
@@ -31,13 +30,6 @@ class StorageBackend(Protocol):
         transcript: str,
         questions: list[InterviewQuestion],
         interview_language: InterviewLanguage | None = None,
-    ) -> JobRecord: ...
-
-    async def create_translate_questions_job(
-        self,
-        *,
-        questions: list[InterviewQuestion],
-        interview_language: InterviewLanguage,
     ) -> JobRecord: ...
 
     async def create_photo_analyze_job(
@@ -83,13 +75,6 @@ class StorageBackend(Protocol):
         job_id: UUID,
         *,
         result: InterviewAnalysisResult,
-    ) -> JobRecord: ...
-
-    async def complete_question_translation(
-        self,
-        job_id: UUID,
-        *,
-        result: QuestionTranslationResult,
     ) -> JobRecord: ...
 
     async def complete_photo_analysis(

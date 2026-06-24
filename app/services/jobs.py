@@ -12,8 +12,6 @@ from app.schemas import (
     JobResponse,
     MessageType,
     PhotoAnalysisResult,
-    QuestionTranslationResult,
-    TranslateQuestionsRequest,
     WorkerClaimResponse,
 )
 from app.storage.protocol import StorageBackend
@@ -75,18 +73,6 @@ async def create_analyze_job(
     return job_to_response(job)
 
 
-async def create_translate_questions_job(
-    storage: StorageBackend,
-    *,
-    body: TranslateQuestionsRequest,
-) -> JobResponse:
-    job = await storage.create_translate_questions_job(
-        questions=body.questions,
-        interview_language=body.interview_language,
-    )
-    return job_to_response(job)
-
-
 async def create_photo_analyze_job(
     storage: StorageBackend,
     *,
@@ -119,16 +105,6 @@ async def claim_next_job(storage: StorageBackend) -> WorkerClaimResponse | None:
             job_id=job.id,
             phase="analyze_interview",
             transcript=job.transcript,
-            analysis_questions=job.analysis_questions,
-            message_type=job.message_type,
-            incident_type_name=job.incident_type_name,
-            interview_language=job.interview_language,
-        )
-
-    if job.job_kind == "question_translation":
-        return WorkerClaimResponse(
-            job_id=job.id,
-            phase="translate_questions",
             analysis_questions=job.analysis_questions,
             message_type=job.message_type,
             incident_type_name=job.incident_type_name,
@@ -226,21 +202,6 @@ async def complete_analysis(
 ) -> JobResponse:
     try:
         job = await storage.complete_analysis(job_id, result=result)
-    except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-    return job_to_response(job)
-
-
-async def complete_question_translation(
-    storage: StorageBackend,
-    job_id: UUID,
-    *,
-    result: QuestionTranslationResult,
-) -> JobResponse:
-    try:
-        job = await storage.complete_question_translation(job_id, result=result)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
     except ValueError as exc:

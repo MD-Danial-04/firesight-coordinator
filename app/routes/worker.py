@@ -11,7 +11,6 @@ from app.schemas import (
     WorkerExtractCompleteRequest,
     WorkerFailRequest,
     WorkerPhotoAnalysisCompleteRequest,
-    WorkerQuestionTranslationCompleteRequest,
     WorkerTranscribeRequest,
 )
 from app.services import jobs as job_service
@@ -108,20 +107,6 @@ async def complete_analysis(
     storage: StorageBackend = Depends(get_storage),
 ) -> JobResponse:
     return await job_service.complete_analysis(
-        storage,
-        job_id,
-        result=body.result,
-    )
-
-
-@router.post("/jobs/{job_id}/complete-question-translation", response_model=JobResponse)
-async def complete_question_translation(
-    job_id: UUID,
-    body: WorkerQuestionTranslationCompleteRequest,
-    _: None = Depends(verify_worker_token),
-    storage: StorageBackend = Depends(get_storage),
-) -> JobResponse:
-    return await job_service.complete_question_translation(
         storage,
         job_id,
         result=body.result,
