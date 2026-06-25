@@ -6,6 +6,8 @@ Run migrations in order in the Supabase SQL editor (or via `supabase db push` if
 2. [`002_realtime_rls_claim.sql`](./002_realtime_rls_claim.sql) — claim RPC, Realtime, RLS, bucket
 3. [`004_interview_analysis_jobs.sql`](./004_interview_analysis_jobs.sql) — interview analysis jobs
 4. [`005_photo_analysis_jobs.sql`](./005_photo_analysis_jobs.sql) — photo analysis jobs + `inference-photos` bucket
+5. [`006_interview_language_transcripts.sql`](./006_interview_language_transcripts.sql) — interview language + transcript columns
+6. [`007_message_type_interview.sql`](./007_message_type_interview.sql) — allow `interview` message type + `interview_details_result` column
 
 If the bucket insert in `002` fails, create **`inference-audio`** manually in Dashboard → Storage (private bucket).
 
