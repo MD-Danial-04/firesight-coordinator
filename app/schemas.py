@@ -91,6 +91,7 @@ class AnalyzeInterviewRequest(BaseModel):
 class QuestionCoverage(BaseModel):
     id: str
     status: QuestionCoverageStatus
+    answer: str = ""
     evidence: str = ""
     confidence: float = Field(..., ge=0.0, le=1.0)
 
