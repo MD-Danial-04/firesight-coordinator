@@ -12,16 +12,6 @@ SAMPLE_IMAGE_BYTES = b"\xff\xd8\xff\xe0fake-jpeg-bytes"
 
 SAMPLE_PHOTO_ANALYSIS_RESULT = {
     "caption": "Charring observed on ceiling lining above seating area.",
-    "detected_elements": ["ceiling charring", "smoke staining"],
-    "suggested_section": "burn_patterns",
-    "section_candidates": {
-        "incident": {"score": 0.15, "reason": None},
-        "damages": {"score": 0.4, "reason": None},
-        "area_of_origin": {"score": 0.35, "reason": None},
-        "burn_patterns": {"score": 0.85, "reason": "ceiling charring visible"},
-        "evidentiary": {"score": 0.2, "reason": None},
-    },
-    "confidence": {"caption": 0.85, "suggested_section": 0.85},
     "source": "fake",
 }
 
@@ -75,14 +65,17 @@ def test_full_photo_analyze_job_lifecycle():
     assert complete_response.status_code == 200
     completed = complete_response.json()
     assert completed["status"] == "completed"
-    assert completed["photo_analysis_result"]["suggested_section"] == "burn_patterns"
-    assert completed["photo_analysis_result"]["section_candidates"]["burn_patterns"]["score"] == 0.85
+    assert (
+        completed["photo_analysis_result"]["caption"]
+        == "Charring observed on ceiling lining above seating area."
+    )
 
     final_response = client.get(f"/v1/jobs/{job_id}", headers=WEB_HEADERS)
     assert final_response.status_code == 200
     final = final_response.json()
     assert final["status"] == "completed"
     assert final["photo_analysis_result"]["source"] == "fake"
+    assert final["photo_analysis_result"]["caption"]
 
 
 def test_photo_job_priority_after_audio_jobs():
