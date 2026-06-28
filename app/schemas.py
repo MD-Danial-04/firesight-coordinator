@@ -215,6 +215,15 @@ class WorkerFailRequest(BaseModel):
     error: str = Field(..., min_length=1)
 
 
+class LocationPlanResponse(BaseModel):
+    matched_address: str
+    latitude: float
+    longitude: float
+    zoom: int
+    postal: str | None = None
+    image_base64: str
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     fake_storage: bool

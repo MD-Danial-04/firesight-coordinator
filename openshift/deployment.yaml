@@ -52,6 +52,16 @@ spec:
               value: inference-audio
             - name: SUPABASE_PHOTO_BUCKET
               value: inference-photos
+            - name: ONEMAP_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: firesight-coordinator-secrets
+                  key: ONEMAP_EMAIL
+            - name: ONEMAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: firesight-coordinator-secrets
+                  key: ONEMAP_PASSWORD
             - name: COORDINATOR_BASE_URL
               valueFrom:
                 secretKeyRef:

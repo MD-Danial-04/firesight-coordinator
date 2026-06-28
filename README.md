@@ -40,6 +40,7 @@ Default mode uses in-memory storage (`USE_FAKE_STORAGE=true`) — no Supabase re
 | GET | `/v1/jobs/{id}/events` | web key | SSE status stream |
 | POST | `/v1/analyze-interview` | web key | Create interview analysis job |
 | POST | `/v1/analyze-photo` | web key | Upload fire-scene photo + create analysis job |
+| GET | `/v1/location-plan` | web key | Geocode an address (OneMap) and return an Annex A location-plan PNG |
 | POST | `/v1/worker/claim` | worker key | Claim next pending job |
 | GET | `/v1/worker/jobs/{id}/audio` | worker key | Download job audio |
 | GET | `/v1/worker/jobs/{id}/image` | worker key | Download job image |
@@ -138,6 +139,8 @@ oc create secret generic firesight-coordinator-secrets \
   --from-literal=WORKER_API_KEY='...' \
   --from-literal=SUPABASE_URL='...' \
   --from-literal=SUPABASE_SERVICE_ROLE_KEY='...' \
+  --from-literal=ONEMAP_EMAIL='...' \
+  --from-literal=ONEMAP_PASSWORD='...' \
   --from-literal=COORDINATOR_BASE_URL='https://firesight-coordinator.example.com' \
   --from-literal=CORS_ORIGINS='https://firesight.example.com'
 

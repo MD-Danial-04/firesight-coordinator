@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     supabase_audio_bucket: str = "inference-audio"
     supabase_photo_bucket: str = "inference-photos"
 
+    onemap_email: str = ""
+    onemap_password: str = ""
+    onemap_base_url: str = "https://www.onemap.gov.sg"
+
     cors_origins: str = "http://localhost:5173"
 
     @property
@@ -29,6 +33,10 @@ class Settings(BaseSettings):
     @property
     def supabase_configured(self) -> bool:
         return bool(self.supabase_url and self.supabase_service_role_key)
+
+    @property
+    def onemap_configured(self) -> bool:
+        return bool(self.onemap_email and self.onemap_password)
 
 
 settings = Settings()
