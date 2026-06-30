@@ -41,6 +41,14 @@ class StorageBackend(Protocol):
         context: AnalyzePhotoContext,
     ) -> JobRecord: ...
 
+    async def create_clean_transcript_job(
+        self,
+        *,
+        transcript_original: str,
+        transcript_english: str,
+        interview_language: InterviewLanguage | None = None,
+    ) -> JobRecord: ...
+
     async def get_job(self, job_id: UUID) -> JobRecord | None: ...
 
     async def claim_next_job(self) -> JobRecord | None: ...
@@ -77,6 +85,14 @@ class StorageBackend(Protocol):
         job_id: UUID,
         *,
         result: InterviewAnalysisResult,
+    ) -> JobRecord: ...
+
+    async def complete_clean_transcript(
+        self,
+        job_id: UUID,
+        *,
+        transcript_original: str,
+        transcript_english: str,
     ) -> JobRecord: ...
 
     async def complete_photo_analysis(

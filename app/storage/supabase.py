@@ -189,6 +189,33 @@ class SupabaseStorage:
 
         return await asyncio.to_thread(_create)
 
+    async def create_clean_transcript_job(
+        self,
+        *,
+        transcript_original: str,
+        transcript_english: str,
+        interview_language: InterviewLanguage | None = None,
+    ) -> JobRecord:
+        job_id = uuid4()
+
+        def _create() -> JobRecord:
+            row = {
+                "id": str(job_id),
+                "status": "analyze_pending",
+                "job_kind": "transcript_cleanup",
+                "audio_path": None,
+                "message_type": "interview",
+                "transcript": transcript_english,
+                "transcript_original": transcript_original,
+                "transcript_english": transcript_english,
+            }
+            if interview_language is not None:
+                row["interview_language"] = interview_language
+            response = self._client.table(TABLE).insert(row).execute()
+            return _row_to_job(response.data[0])
+
+        return await asyncio.to_thread(_create)
+
     async def get_job(self, job_id: UUID) -> JobRecord | None:
         def _get() -> JobRecord | None:
             response = (
@@ -339,6 +366,38 @@ class SupabaseStorage:
             update = {
                 "status": "completed",
                 "analysis_result": result.model_dump(mode="json"),
+                "error": None,
+                "completed_at": now,
+            }
+            response = (
+                self._client.table(TABLE)
+                .update(update)
+                .eq("id", str(job_id))
+                .execute()
+            )
+            return _row_to_job(response.data[0])
+
+        return await asyncio.to_thread(_complete)
+
+    async def complete_clean_transcript(
+        self,
+        job_id: UUID,
+        *,
+        transcript_original: str,
+        transcript_english: str,
+    ) -> JobRecord:
+        def _complete() -> JobRecord:
+            job = self._require_job_sync(job_id)
+            if job.status != "processing":
+                raise ValueError(
+                    f"Job {job_id} cannot complete transcript cleanup from status {job.status}"
+                )
+            now = datetime.now(UTC).isoformat()
+            update = {
+                "status": "completed",
+                "transcript": transcript_english,
+                "transcript_original": transcript_original,
+                "transcript_english": transcript_english,
                 "error": None,
                 "completed_at": now,
             }

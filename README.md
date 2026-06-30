@@ -39,6 +39,7 @@ Default mode uses in-memory storage (`USE_FAKE_STORAGE=true`) — no Supabase re
 | GET | `/v1/jobs/{id}` | web key | Get job status and results |
 | GET | `/v1/jobs/{id}/events` | web key | SSE status stream |
 | POST | `/v1/analyze-interview` | web key | Create interview analysis job |
+| POST | `/v1/clean-transcript` | web key | Create transcript-cleanup job (remove interviewer questions) |
 | POST | `/v1/analyze-photo` | web key | Upload fire-scene photo + create analysis job |
 | GET | `/v1/location-plan` | web key | Geocode an address (OneMap) and return an Annex A location-plan PNG |
 | POST | `/v1/worker/claim` | worker key | Claim next pending job |
@@ -47,6 +48,7 @@ Default mode uses in-memory storage (`USE_FAKE_STORAGE=true`) — no Supabase re
 | POST | `/v1/worker/jobs/{id}/transcribe` | worker key | Complete transcription phase |
 | POST | `/v1/worker/jobs/{id}/complete-extraction` | worker key | Complete extraction phase |
 | POST | `/v1/worker/jobs/{id}/complete-analysis` | worker key | Complete interview analysis |
+| POST | `/v1/worker/jobs/{id}/complete-clean-transcript` | worker key | Complete transcript cleanup |
 | POST | `/v1/worker/jobs/{id}/complete-photo-analysis` | worker key | Complete photo analysis |
 | POST | `/v1/worker/jobs/{id}/fail` | worker key | Mark job failed |
 

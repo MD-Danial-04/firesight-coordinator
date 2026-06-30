@@ -21,7 +21,12 @@ ExtractableField = Literal[
     "handoverNpc",
 ]
 
-JobKind = Literal["audio_inference", "interview_analysis", "photo_analysis"]
+JobKind = Literal[
+    "audio_inference",
+    "interview_analysis",
+    "photo_analysis",
+    "transcript_cleanup",
+]
 JobStatus = Literal[
     "pending",
     "processing",
@@ -35,7 +40,13 @@ MessageType = Literal["stop_message", "field_notes", "interview"]
 InterviewLanguage = Literal["en", "ms", "ta", "zh"]
 ResultSource = Literal["fake", "ollama", "nim", "regex_fallback"]
 AnalysisSource = Literal["fake", "ollama", "nim"]
-WorkerPhase = Literal["transcribe", "extract", "analyze_interview", "analyze_photo"]
+WorkerPhase = Literal[
+    "transcribe",
+    "extract",
+    "analyze_interview",
+    "analyze_photo",
+    "clean_transcript",
+]
 QuestionCoverageStatus = Literal["answered", "partial", "unanswered", "unclear"]
 
 
@@ -85,6 +96,12 @@ class InterviewQuestion(BaseModel):
 class AnalyzeInterviewRequest(BaseModel):
     transcript: str = Field(..., min_length=1)
     questions: list[InterviewQuestion] = Field(..., min_length=1)
+    interview_language: InterviewLanguage = "en"
+
+
+class CleanTranscriptRequest(BaseModel):
+    transcript_original: str = Field(..., min_length=1)
+    transcript_english: str = Field(..., min_length=1)
     interview_language: InterviewLanguage = "en"
 
 
@@ -178,6 +195,8 @@ class WorkerClaimResponse(BaseModel):
     audio_download_url: str | None = None
     image_download_url: str | None = None
     transcript: str | None = None
+    transcript_original: str | None = None
+    transcript_english: str | None = None
     analysis_questions: list[InterviewQuestion] | None = None
     photo_context: AnalyzePhotoContext | None = None
     message_type: MessageType
@@ -199,6 +218,11 @@ class WorkerExtractCompleteRequest(BaseModel):
 
 class WorkerAnalysisCompleteRequest(BaseModel):
     result: InterviewAnalysisResult
+
+
+class WorkerCleanTranscriptCompleteRequest(BaseModel):
+    transcript_original: str
+    transcript_english: str
 
 
 class WorkerPhotoAnalysisCompleteRequest(BaseModel):

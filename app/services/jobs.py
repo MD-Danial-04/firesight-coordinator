@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from app.schemas import (
     AnalyzeInterviewRequest,
     AnalyzePhotoContext,
+    CleanTranscriptRequest,
     InferenceResult,
     InterviewAnalysisResult,
     InterviewDetailsResult,
@@ -90,6 +91,19 @@ async def create_photo_analyze_job(
     return job_to_response(job)
 
 
+async def create_clean_transcript_job(
+    storage: StorageBackend,
+    *,
+    body: CleanTranscriptRequest,
+) -> JobResponse:
+    job = await storage.create_clean_transcript_job(
+        transcript_original=body.transcript_original,
+        transcript_english=body.transcript_english,
+        interview_language=body.interview_language,
+    )
+    return job_to_response(job)
+
+
 async def get_job(storage: StorageBackend, job_id: UUID) -> JobResponse:
     job = await storage.get_job(job_id)
     if job is None:
@@ -121,6 +135,18 @@ async def claim_next_job(storage: StorageBackend) -> WorkerClaimResponse | None:
             photo_context=job.photo_context,
             message_type=job.message_type,
             incident_type_name=job.incident_type_name,
+        )
+
+    if job.job_kind == "transcript_cleanup":
+        return WorkerClaimResponse(
+            job_id=job.id,
+            phase="clean_transcript",
+            transcript=job.transcript,
+            transcript_original=job.transcript_original,
+            transcript_english=job.transcript_english,
+            message_type=job.message_type,
+            incident_type_name=job.incident_type_name,
+            interview_language=job.interview_language,
         )
 
     phase = "extract" if job.transcript else "transcribe"
@@ -209,6 +235,26 @@ async def complete_analysis(
 ) -> JobResponse:
     try:
         job = await storage.complete_analysis(job_id, result=result)
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return job_to_response(job)
+
+
+async def complete_clean_transcript(
+    storage: StorageBackend,
+    job_id: UUID,
+    *,
+    transcript_original: str,
+    transcript_english: str,
+) -> JobResponse:
+    try:
+        job = await storage.complete_clean_transcript(
+            job_id,
+            transcript_original=transcript_original,
+            transcript_english=transcript_english,
+        )
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from None
     except ValueError as exc:

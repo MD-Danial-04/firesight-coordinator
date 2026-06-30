@@ -103,6 +103,32 @@ class MemoryStorage:
             self._images[job_id] = (image_bytes, filename)
         return job
 
+    async def create_clean_transcript_job(
+        self,
+        *,
+        transcript_original: str,
+        transcript_english: str,
+        interview_language: InterviewLanguage | None = None,
+    ) -> JobRecord:
+        job_id = uuid4()
+        now = datetime.now(UTC)
+        job = JobRecord(
+            id=job_id,
+            created_at=now,
+            updated_at=now,
+            status="analyze_pending",
+            job_kind="transcript_cleanup",
+            audio_path=None,
+            message_type="interview",
+            transcript=transcript_english,
+            transcript_original=transcript_original,
+            transcript_english=transcript_english,
+            interview_language=interview_language,
+        )
+        async with self._lock:
+            self._jobs[job_id] = job
+        return job
+
     async def get_job(self, job_id: UUID) -> JobRecord | None:
         return self._jobs.get(job_id)
 
@@ -240,6 +266,34 @@ class MemoryStorage:
                 update={
                     "status": "completed",
                     "analysis_result": result,
+                    "error": None,
+                    "updated_at": now,
+                    "completed_at": now,
+                }
+            )
+            self._jobs[job_id] = updated
+            return updated
+
+    async def complete_clean_transcript(
+        self,
+        job_id: UUID,
+        *,
+        transcript_original: str,
+        transcript_english: str,
+    ) -> JobRecord:
+        async with self._lock:
+            job = self._require_job(job_id)
+            if job.status != "processing":
+                raise ValueError(
+                    f"Job {job_id} cannot complete transcript cleanup from status {job.status}"
+                )
+            now = datetime.now(UTC)
+            updated = job.model_copy(
+                update={
+                    "status": "completed",
+                    "transcript": transcript_english,
+                    "transcript_original": transcript_original,
+                    "transcript_english": transcript_english,
                     "error": None,
                     "updated_at": now,
                     "completed_at": now,

@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.auth import verify_web_token
-from app.schemas import AnalyzeInterviewRequest, AnalyzePhotoContext, JobResponse
+from app.schemas import (
+    AnalyzeInterviewRequest,
+    AnalyzePhotoContext,
+    CleanTranscriptRequest,
+    JobResponse,
+)
 from app.services import jobs as job_service
 from app.storage import get_storage_backend
 from app.storage.protocol import StorageBackend
@@ -20,6 +25,15 @@ async def create_analyze_interview_job(
     storage: StorageBackend = Depends(get_storage),
 ) -> JobResponse:
     return await job_service.create_analyze_job(storage, body=body)
+
+
+@router.post("/clean-transcript", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+async def create_clean_transcript_job(
+    body: CleanTranscriptRequest,
+    _: None = Depends(verify_web_token),
+    storage: StorageBackend = Depends(get_storage),
+) -> JobResponse:
+    return await job_service.create_clean_transcript_job(storage, body=body)
 
 
 @router.post("/analyze-photo", response_model=JobResponse, status_code=status.HTTP_201_CREATED)

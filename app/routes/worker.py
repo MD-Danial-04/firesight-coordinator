@@ -7,6 +7,7 @@ from app.auth import verify_worker_token
 from app.schemas import (
     JobResponse,
     WorkerAnalysisCompleteRequest,
+    WorkerCleanTranscriptCompleteRequest,
     WorkerClaimResponse,
     WorkerExtractCompleteRequest,
     WorkerFailRequest,
@@ -111,6 +112,21 @@ async def complete_analysis(
         storage,
         job_id,
         result=body.result,
+    )
+
+
+@router.post("/jobs/{job_id}/complete-clean-transcript", response_model=JobResponse)
+async def complete_clean_transcript(
+    job_id: UUID,
+    body: WorkerCleanTranscriptCompleteRequest,
+    _: None = Depends(verify_worker_token),
+    storage: StorageBackend = Depends(get_storage),
+) -> JobResponse:
+    return await job_service.complete_clean_transcript(
+        storage,
+        job_id,
+        transcript_original=body.transcript_original,
+        transcript_english=body.transcript_english,
     )
 
 
